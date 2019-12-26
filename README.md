@@ -4,9 +4,9 @@ I'll be putting up all the GANs I've managed to get results from in this reposit
 notebooks for easy interactive use.
 
 You need these before you run the notebooks
-	* torch, torchvision
-	* opencv
+* torch, torchvision
+* opencv
 
 ## List of my GANs
-	* **SNGAN with CIFAR**
+* **SNGAN with CIFAR**
 
