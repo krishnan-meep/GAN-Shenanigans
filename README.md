@@ -7,6 +7,6 @@ You need these before you run the notebooks
 	* torch, torchvision
 	* opencv
 
-##List of my GANs
+## List of my GANs
 	* **SNGAN with CIFAR**
 
