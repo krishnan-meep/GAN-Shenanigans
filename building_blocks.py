@@ -17,7 +17,6 @@ class ResBlock(nn.Module):
     self.C1 = (nn.Conv2d(channels, channels, kernel_size = 3, stride = 1, padding = 1))
     self.C2 = (nn.Conv2d(channels, channels, kernel_size = 3, stride = 1, padding = 1))    
     if specnorm:
-        print("Specd", channels)
         self.C1 = SpectralNorm(self.C1, power_iterations = 1)
         self.C2 = SpectralNorm(self.C2, power_iterations = 1)
     self.B1 = nn.BatchNorm2d(channels)
@@ -26,11 +25,11 @@ class ResBlock(nn.Module):
   def forward(self, x):
     S = x
     if self.batchnorm:
-      x = F.leaky_relu(self.B1(self.C1(x)))
-      x = F.leaky_relu(self.B2(self.C2(x)) + S)
+      x = F.relu(self.B1(self.C1(x)))
+      x = F.relu(self.B2(self.C2(x)) + S)
     else:
-      x = F.leaky_relu((self.C1(x)))
-      x = F.leaky_relu((self.C2(x)) + S)
+      x = F.relu((self.C1(x)))
+      x = F.relu((self.C2(x)) + S)
     return x
 
 class UpBlock(nn.Module):
@@ -47,15 +46,14 @@ class UpBlock(nn.Module):
   def forward(self, x):
     x = self.U(x)
     if self.batchnorm:
-      x = F.leaky_relu(self.B1(self.C1(x)))
+      x = F.relu(self.B1(self.C1(x)))
     else:
-      x = F.leaky_relu((self.C1(x)))
+      x = F.relu((self.C1(x)))
     return x
 
 class DownBlock(nn.Module):
   def __init__(self, in_channels, out_channels, specnorm = False, batchnorm = False):
     super(DownBlock, self).__init__()
-    print("Downblock")
     self.specnorm = specnorm
     self.batchnorm = batchnorm
     self.C1 = nn.Conv2d(in_channels, out_channels, kernel_size = 4, stride = 2, padding = 1)
@@ -65,9 +63,9 @@ class DownBlock(nn.Module):
 
   def forward(self, x):
     if self.batchnorm:
-      x = F.leaky_relu(self.B1(self.C1(x)))
+      x = F.relu(self.B1(self.C1(x)))
     else:
-      x = F.leaky_relu((self.C1(x)))
+      x = F.relu((self.C1(x)))
     return x
 
 
@@ -90,7 +88,7 @@ class ModulatingNet(nn.Module):
       self.Beta = SpectralNorm(self.Beta)
 
   def forward(self, z):
-    x = F.leaky_relu(self.L1(z))
+    x = F.relu(self.L1(z))
     return self.Gamma(x).view(-1, self.out_features, 1, 1), self.Beta(x).view(-1, self.out_features, 1, 1)
 
 
