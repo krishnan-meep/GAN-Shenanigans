@@ -1,10 +1,15 @@
 import os
 import cv2
 import numpy as np
+from random import shuffle
 
-def load_data(path, image_size):
+#image_size is a two dimensional tuple (H,W)
+def load_data(path, image_size, block_size = None):
   x_train = []
   files = os.listdir(path)
+  shuffle(files)
+  if block_size is None or block_size > len(files):
+    block_size = len(files)
 
   for i,file in enumerate(files):
     img = cv2.imread(path+"/"+file)
@@ -13,4 +18,9 @@ def load_data(path, image_size):
     img = np.transpose(img, (2, 0, 1))
     img = np.float32(img)
     x_train.append(img)
-    print(i,"/",len(files))
+    print(i,"/",block_size)
+
+    if i >= block_size - 1:
+      break
+
+  return np.array(x_train)

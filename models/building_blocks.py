@@ -7,7 +7,12 @@ from torch.nn import Parameter
 from torch.autograd import Variable
 
 class ResBlock(nn.Module):
-  def __init__(self, channels, specnorm = False, batchnorm = False):
+  #!!!!!!!!!!!
+  #If you set batchnorm to true and use_instance_norm to True, the Resblock does instance_norm
+  #instead of batchnorm!!!!
+  #!!!!!!!!!!!
+  def __init__(self, channels, specnorm = False, batchnorm = False, use_instance_norm = False):
+
     super(ResBlock, self).__init__()
 
     #Conv->BN->Relu->Conv->BN->Shortcut->Relu
@@ -19,8 +24,13 @@ class ResBlock(nn.Module):
     if specnorm:
         self.C1 = SpectralNorm(self.C1, power_iterations = 1)
         self.C2 = SpectralNorm(self.C2, power_iterations = 1)
-    self.B1 = nn.BatchNorm2d(channels)
-    self.B2 = nn.BatchNorm2d(channels)
+
+    if use_instance_norm:
+      self.B1 = nn.BatchNorm2d(channels)
+      self.B2 = nn.BatchNorm2d(channels)
+    else:
+      self.B1 = nn.InstanceNorm2d(channels)
+      self.B2 = nn.InstanceNorm2d(channels)
 
   def forward(self, x):
     S = x
@@ -31,6 +41,50 @@ class ResBlock(nn.Module):
       x = F.relu((self.C1(x)))
       x = F.relu((self.C2(x)) + S)
     return x
+
+
+class DenseBlock(nn.Module):
+  #Produces 160 feature maps
+  def __init__(self, channels, specnorm = False, batchnorm = False):
+    super(DenseBlock, self).__init__()
+    self.specnorm = specnorm
+    self.batchnorm = batchnorm
+
+    self.C1 = nn.Conv2d(channels, 32, kernel_size = 1, stride = 1, padding = 0)
+    self.C2 = nn.Conv2d(32, 32, kernel_size = 3, stride = 1, padding = 1)
+    self.C3 = nn.Conv2d(64, 32, kernel_size = 3, stride = 1, padding = 1)
+    self.C4 = nn.Conv2d(96, 32, kernel_size = 3, stride = 1, padding = 1)
+    self.C5 = nn.Conv2d(128, 32, kernel_size = 3, stride = 1, padding = 1)
+
+    self.B1 = nn.BatchNorm2d(32)
+    self.B2 = nn.BatchNorm2d(32)
+    self.B3 = nn.BatchNorm2d(32)
+    self.B4 = nn.BatchNorm2d(32)
+    self.B5 = nn.BatchNorm2d(32)
+
+    if specnorm:
+        self.C1 = SpectralNorm(self.C1, power_iterations = 1)
+        self.C2 = SpectralNorm(self.C2, power_iterations = 1)
+        self.C3 = SpectralNorm(self.C3, power_iterations = 1)
+        self.C4 = SpectralNorm(self.C4, power_iterations = 1)
+        self.C5 = SpectralNorm(self.C5, power_iterations = 1)
+
+  def forward(self, x):
+    if self.batchnorm:
+      a = F.relu(self.B1(self.C1(x)))
+      b = F.relu(self.B2(self.C2(a)))
+      c = F.relu(self.B3(self.C3(torch.cat([a,b], dim = 1))))
+      d = F.relu(self.B4(self.C4(torch.cat([a,b,c], dim = 1))))
+      e = F.relu(self.B5(self.C5(torch.cat([a,b,c,d], dim = 1))))
+    else:
+      a = F.relu((self.C1(x)))
+      b = F.relu((self.C2(a)))
+      c = F.relu((self.C3(torch.cat([a,b], dim = 1))))
+      d = F.relu((self.C4(torch.cat([a,b,c], dim = 1))))
+      e = F.relu(self.C5(torch.cat([a,b,c,d], dim = 1)))
+
+    return torch.cat([a,b,c,d,e], dim = 1)
+
 
 class UpBlock(nn.Module):
   def __init__(self, in_channels, out_channels, specnorm = False, batchnorm = False):
