@@ -69,25 +69,25 @@ class Basic_Generator(nn.Module):
 		return x
 
 class Basic_Discriminator(nn.Module):
-	def __init__(self, image_size, specnorm = True, mbd = False, in_channels = 3):
+	def __init__(self, image_size, specnorm = True, mbd_features = None, in_channels = 3):
 		super(Basic_Discriminator, self).__init__()
 		self.h, self.w = image_size[0]//16, image_size[1]//16
 		self.in_channels = in_channels
-		self.mbd = mbd
+		self.mbd_features = mbd_features
 
 		self.DB1 = DownBlock(self.in_channels, 64, specnorm = specnorm, batchnorm = False)
 		self.DB2 = DownBlock(64, 128, specnorm = specnorm, batchnorm = False)
 		self.DB3 = DownBlock(128, 256, specnorm = specnorm, batchnorm = False)
 		self.DB4 = DownBlock(256, 512, specnorm = specnorm, batchnorm = False)
 
-		if mbd:
-			self.D1 = nn.Linear(512*self.h*self.w + 16, 1)
+		if mbd_features is not None:
+			self.D1 = nn.Linear(512*self.h*self.w + mbd_features, 1)
+			self.MBD = MinibatchDiscrimination1d(512*self.h*self.w, mbd_features)
 		else:
 			self.D1 = nn.Linear(512*self.h*self.w, 1)
 
 		if specnorm:
 			self.D1 = SpectralNorm(self.D1)
-		self.MBD = MinibatchDiscrimination1d(512*self.h*self.w, 16)
 
 	def forward(self, x):
 		n = torch.randn(x.shape[0], x.shape[1], x.shape[2], x.shape[3])
@@ -100,7 +100,7 @@ class Basic_Discriminator(nn.Module):
 		x = self.DB4(x)
 		x = x.view(-1, 512*self.h*self.w)
 
-		if self.mbd:
+		if self.mbd_features is not None:
 			x = self.MBD(x)
 
 		x = self.D1(x)

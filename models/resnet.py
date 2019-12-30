@@ -55,25 +55,26 @@ class ResNet_Generator(nn.Module):
 		return x
 
 class ResNet_Discriminator(nn.Module):
-	def __init__(self, image_size, specnorm = True, mbd = False, in_channels = 3):
+	def __init__(self, image_size, specnorm = True, mbd_features = None, in_channels = 3):
 		super(ResNet_Discriminator, self).__init__()
 		self.h, self.w = image_size[0]//4, image_size[1]//4
 		self.in_channels = in_channels
-		self.mbd = mbd
+		self.mbd_features = mbd_features
 
 		self.DB1 = DownBlock(self.in_channels, 64, specnorm = specnorm, batchnorm = False)
 		self.DB2 = DownBlock(64, 128, specnorm = specnorm, batchnorm = False)
 		self.R1 = ResBlock(128, specnorm = specnorm, batchnorm = False)
 		self.R2 = ResBlock(128, specnorm = specnorm, batchnorm = False)
 
-		if mbd:
-			self.D1 = nn.Linear(128*self.h*self.w + 16, 1)
+		if mbd_features is not None:
+			self.D1 = nn.Linear(128*self.h*self.w + mbd_features, 1)
+			self.MBD = MinibatchDiscrimination1d(128*self.h*self.w, mbd_features)
 		else:
 			self.D1 = nn.Linear(128*self.h*self.w, 1)
 
 		if specnorm:
 			self.D1 = SpectralNorm(self.D1)
-		self.MBD = MinibatchDiscrimination1d(128*self.h*self.w, 16)
+
 
 	def forward(self, x):
 		n = torch.randn(x.shape[0], x.shape[1], x.shape[2], x.shape[3])
@@ -86,7 +87,7 @@ class ResNet_Discriminator(nn.Module):
 		x = self.R2(x)
 		x = x.view(-1, 128*self.h*self.w)
 
-		if self.mbd:
+		if self.mbd_features is not None:
 			x = self.MBD(x)
 
 		x = self.D1(x)

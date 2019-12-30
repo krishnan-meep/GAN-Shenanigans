@@ -32,13 +32,20 @@ You need these before you run the notebooks
 
 	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/cifar_deer_300.png)
 
-* CycleGAN - Ukiyo-e Paintings & Fruits
+* **CycleGAN - Ukiyo-e Paintings & Fruits**
 
-	UNet-Generators with Resblocks in the middle, PatchGAN discriminators.
+	UNet-Generators with Resblocks in the middle, basic discriminators (PatchGAN is available but it doesn't seem to fare as well as a vanilla discriminator).
 
 	Results shown below took 100 epochs. It's slow going training four networks at once.
 
-
 	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/cycgan_uki_fruits.png)
+
+* **pix2pix - Colorizing Fruit**
+
+	Doesn't work yet, not sure why, uses a UNet-Generator and a PatchGAN discriminator. 
+
+* **WGAN-GP + SNGAN-ResNet for Pokemon**
+
+	An alternate version of the SNGAN-ResNet model above with Wasserstein Loss and Gradient Penalty used instead of hinge loss. As of the moment, the architectures haven't been changed, meaning that it's using the CIFAR architecture, which is pretty small.
 
 * More to come.....
