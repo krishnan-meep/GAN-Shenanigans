@@ -278,3 +278,12 @@ def GradientPenalty(discriminator_model, real_data, generated_data, gp_weight = 
 
     # Return gradient penalty
     return gp_weight * ((gradients_norm - 1) ** 2).mean()
+
+
+class PixelNorm(nn.Module):
+    def __init__(self):
+        super(PixelNorm, self).__init__()
+
+    def forward(self, input):
+        return input / torch.sqrt(torch.mean(input ** 2, dim=1, keepdim=True)
+                                  + 1e-8)

@@ -48,4 +48,8 @@ You need these before you run the notebooks
 
 	An alternate version of the SNGAN-ResNet model above with Wasserstein Loss and Gradient Penalty used instead of hinge loss. As of the moment, the architectures haven't been changed, meaning that it's using the CIFAR architecture, which is pretty small.
 
+* **Progressive GAN**
+
+	Progressively growing a basic DCGAN, it takes a while to run so not sure if it works yet.
+
 * More to come.....
