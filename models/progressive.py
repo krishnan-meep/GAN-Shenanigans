@@ -3,6 +3,7 @@ import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import math
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 from models.building_blocks import PixelNorm, MinibatchDiscrimination1d, SpectralNorm
@@ -10,9 +11,36 @@ from models.building_blocks import PixelNorm, MinibatchDiscrimination1d, Spectra
 #A rewritten version of the code found here########################################
 #				https://github.com/odegeasslbc/Progressive-GAN-pytorch
 #
-#Code is functionally with some additional options
+#Code is functionally the same
 ###################################################################################
+class EqualLR:
+    def __init__(self, name):
+        self.name = name
 
+    def compute_weight(self, module):
+        weight = getattr(module, self.name + '_orig')
+        fan_in = weight.data.size(1) * weight.data[0][0].numel()
+
+        return weight * math.sqrt(2 / fan_in)
+
+    @staticmethod
+    def apply(module, name):
+        fn = EqualLR(name)
+
+        weight = getattr(module, name)
+        del module._parameters[name]
+        module.register_parameter(name + '_orig', nn.Parameter(weight.data))
+        module.register_forward_pre_hook(fn)
+
+        return fn
+
+    def __call__(self, module, input):
+        weight = self.compute_weight(module)
+        setattr(module, self.name, weight)
+        
+def equal_lr(module, name='weight'):
+    EqualLR.apply(module, name)
+    return module
 
 class ConvBlock(nn.Module):
 	#Just a block of two convolutions with pixelnorm
@@ -23,8 +51,11 @@ class ConvBlock(nn.Module):
 		self.C2 = nn.Conv2d(out_channels, out_channels, kernel_size = 3, stride = 1, padding = 1)
 
 		if specnorm:
-			self.C1 = SpectralNorm(self.C1)
-			self.C2 = SpectralNorm(self.C2)
+			self.C1 = SpectralNorm(self.C1, power_iterations = 3)
+			self.C2 = SpectralNorm(self.C2, power_iterations = 3)
+		else:
+			self.C1 = equal_lr(self.C1)
+			self.C2 = equal_lr(self.C2)
 
 	def forward(self, x):
 		x = F.leaky_relu(self.P(self.C1(x)))
@@ -33,7 +64,7 @@ class ConvBlock(nn.Module):
 
 
 class Prog_Generator(nn.Module):
-	def __init__(self, noise_dim = 128):
+	def __init__(self, noise_dim = 128, specnorm = False):
 		super(Prog_Generator, self).__init__()
 		self.noise_dim = noise_dim
 
@@ -41,13 +72,13 @@ class Prog_Generator(nn.Module):
 		self.Proj = nn.ConvTranspose2d(noise_dim, 128, kernel_size = 4, stride = 1, padding = 0)
 		self.Pi = PixelNorm()
 
-		self.C_4x4 = ConvBlock(128, 128)
-		self.C_8x8 = ConvBlock(128, 128)
-		self.C_16x16 = ConvBlock(128, 128)
-		self.C_32x32 = ConvBlock(128, 128)
-		self.C_64x64 = ConvBlock(128, 128)
-		self.C_128x128 = ConvBlock(128, 128)
-		self.C_256x256 = ConvBlock(128, 128)
+		self.C_4x4 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_8x8 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_16x16 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_32x32 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_64x64 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_128x128 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_256x256 = ConvBlock(128, 128, specnorm = specnorm)
 
 		self.To_RGB_8x8 = nn.Conv2d(128, 3, kernel_size = 3, stride = 1, padding = 1)
 		self.To_RGB_16x16 = nn.Conv2d(128, 3, kernel_size = 3, stride = 1, padding = 1)
@@ -59,6 +90,15 @@ class Prog_Generator(nn.Module):
 		self.ConvList = nn.ModuleList([self.C_16x16, self.C_32x32, self.C_64x64, self.C_128x128, self.C_256x256])
 		self.To_RGBList = nn.ModuleList([self.To_RGB_8x8, self.To_RGB_16x16, self.To_RGB_32x32, self.To_RGB_64x64,
 											self.To_RGB_128x128, self.To_RGB_256x256])
+
+		if specnorm:
+			for i in range(len(self.To_RGBList)):
+				self.To_RGBList[i] = SpectralNorm(self.To_RGBList[i], power_iterations = 3)
+		else:
+			for i in range(len(self.To_RGBList)):
+				self.To_RGBList[i] = equal_lr(self.To_RGBList[i])
+
+
 
 	def forward(self, z, steps = 0, alpha = -1):
 		x = z.view(-1, self.noise_dim, 1, 1)
@@ -92,16 +132,16 @@ class Prog_Generator(nn.Module):
 
 
 class Prog_Discriminator(nn.Module):
-	def __init__(self):
+	def __init__(self, specnorm = False):
 		super(Prog_Discriminator, self).__init__()
 
-		self.C_1 = ConvBlock(128, 128)
-		self.C_2 = ConvBlock(128, 128)
-		self.C_3 = ConvBlock(128, 128)
-		self.C_4 = ConvBlock(128, 128)
-		self.C_5 = ConvBlock(128, 128)
-		self.C_6 = ConvBlock(128, 128)
-		self.C_7 = ConvBlock(128 + 1, 128)
+		self.C_1 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_2 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_3 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_4 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_5 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_6 = ConvBlock(128, 128, specnorm = specnorm)
+		self.C_7 = ConvBlock(128 + 1, 128, specnorm = specnorm)
 
 		self.From_RGB_1 = nn.Conv2d(3, 128, kernel_size = 3, stride = 1, padding = 1)
 		self.From_RGB_2 = nn.Conv2d(3, 128, kernel_size = 3, stride = 1, padding = 1)
@@ -117,6 +157,13 @@ class Prog_Discriminator(nn.Module):
 		self.ConvList = nn.ModuleList([self.C_1, self.C_2, self.C_3, self.C_4, self.C_5, self.C_6, self.C_7])
 		self.From_RGBList = nn.ModuleList([self.From_RGB_1, self.From_RGB_2, self.From_RGB_3, self.From_RGB_4,
 										self.From_RGB_5, self.From_RGB_6, self.From_RGB_7])
+
+		if specnorm:
+			for i in range(len(self.From_RGBList)):
+				self.From_RGBList[i] = SpectralNorm(self.From_RGBList[i], power_iterations = 3)
+		else:
+			for i in range(len(self.From_RGBList)):
+				self.From_RGBList[i] = equal_lr(self.From_RGBList[i])
 
 	def forward(self, x, steps = 0, alpha = -1):
 
