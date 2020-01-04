@@ -46,7 +46,11 @@ You need these before you run the notebooks
 
 * **WGAN-GP + SNGAN-ResNet for Pokemon**
 
-	An alternate version of the SNGAN-ResNet model above with Wasserstein Loss and Gradient Penalty used instead of hinge loss. As of the moment, the architectures haven't been changed, meaning that it's using the CIFAR architecture, which is pretty small.
+	An alternate version of the SNGAN-ResNet model above with Wasserstein Loss and Gradient Penalty used instead of hinge loss. As of the moment, the architectures haven't been changed, meaning that it's using the CIFAR architecture, which is pretty small. SpecNorm and Self Modulation are present. Seems to produce the best results and it converges beautifully.
+
+	Here are Pokemon generated with a 1000 epochs (64x64 images). Could still improve on the geometrical features but the color palettes and general shapes are swell.
+
+	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/wgangp_poke_1000.png)
 
 * **Progressive GAN**
 
