@@ -73,6 +73,43 @@ class UNet_Generator(nn.Module):
         x = torch.tanh(self.TC5(x))
         return x
 
+class Star_Generator(nn.Module):
+    def __init__(self, in_channels = 3, out_channels = 3, cond_length = 10):
+        super(Star_Generator, self).__init__()
+        self.cond_length = cond_length
+
+        self.C1 = nn.Conv2d(in_channels + cond_length, 64, kernel_size = 4, stride = 2, padding = 1)
+        self.I1 = nn.InstanceNorm2d(64)
+
+        self.C2 = nn.Conv2d(64, 128, kernel_size = 4, stride = 2, padding = 1)
+        self.I2 = nn.InstanceNorm2d(128)
+
+        self.R1 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.R2 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.R3 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.R4 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
+
+        self.TC1 = nn.ConvTranspose2d(128, 64, kernel_size = 4, stride = 2, padding = 1)
+        self.IT1 = nn.InstanceNorm2d(64)
+
+        self.TC2 = nn.ConvTranspose2d(64, 32, kernel_size = 4, stride = 2, padding = 1)
+        self.IT2 = nn.InstanceNorm2d(32)
+
+        self.TC3 = nn.ConvTranspose2d(32, out_channels, kernel_size = 3, stride = 1, padding = 1)        
+
+    def forward(self, x, c):
+        c = c.view(-1, self.cond_length, 1, 1)
+        c = c.repeat(1, 1, x.shape[2], x.shape[3])
+        x = torch.cat([x, c], dim = 1)
+
+        x = F.leaky_relu(self.I1(self.C1(x)))
+        x = F.leaky_relu(self.I2(self.C2(x)))
+        x = self.R4(self.R3(self.R2(self.R1(x))))
+        x = F.leaky_relu(self.IT1(self.TC1(x)))
+        x = F.leaky_relu(self.IT2(self.TC2(x)))
+        x = torch.tanh(self.TC3(x))
+        return x
+
 class Basic_Discriminator(nn.Module):
     def __init__(self, in_channels = 3):
         super(Basic_Discriminator, self).__init__()
@@ -129,3 +166,40 @@ class Patch_Discriminator(nn.Module):
         x = F.leaky_relu(self.B5(self.C5(x)))
         x = F.leaky_relu(self.C6(x))
         return x
+
+class Star_Patch_Discriminator(nn.Module):
+    def __init__(self, img_size, in_channels = 3, cond_length = 10):
+        super(Star_Patch_Discriminator, self).__init__()
+        self.cond_length = cond_length
+        self.h, self.w = img_size[0]//32, img_size[1]//32
+
+        self.C1 = nn.Conv2d(in_channels, 32, kernel_size = 4, stride = 2, padding = 1)
+
+        self.C2 = nn.Conv2d(32, 64, kernel_size = 4, stride = 2, padding = 1)
+        self.B2 = nn.BatchNorm2d(64)
+        
+        self.C3 = nn.Conv2d(64, 128, kernel_size = 4, stride = 2, padding = 1)
+        self.B3 = nn.BatchNorm2d(128)
+        
+        self.C4 = nn.Conv2d(128, 256, kernel_size = 4, stride = 2, padding = 1)
+        self.B4 = nn.BatchNorm2d(256)
+
+        self.C5 = nn.Conv2d(256, 512, kernel_size = 4, stride = 2, padding = 1)
+        self.B5 = nn.BatchNorm2d(512)
+        
+        self.C6 = nn.Conv2d(512, 30, kernel_size = 3, stride = 1, padding = 1)
+
+        self.D1 = nn.Linear(512*self.h*self.w, cond_length)
+
+    def forward(self, x):
+        x = F.leaky_relu(self.C1(x))
+        x = F.leaky_relu(self.B2(self.C2(x)))
+        x = F.leaky_relu(self.B3(self.C3(x)))
+        x = F.leaky_relu(self.B4(self.C4(x)))
+        x = F.leaky_relu(self.B5(self.C5(x)))
+
+        h = x.view(-1, 512*self.h*self.w)
+
+        c = self.D1(h)
+        x = self.C6(x)
+        return x, c

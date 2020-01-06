@@ -56,4 +56,8 @@ You need these before you run the notebooks
 
 	Progressively growing a basic DCGAN, it takes a while to run so not sure if it works yet.
 
+* **Conditional SNGAN with Word Embeddings**
+
+* **StarGAN**
+
 * More to come.....
