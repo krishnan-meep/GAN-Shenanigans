@@ -74,37 +74,54 @@ class UNet_Generator(nn.Module):
         return x
 
 class Star_Generator(nn.Module):
-    def __init__(self, in_channels = 3, out_channels = 3, cond_length = 10):
+    def __init__(self, img_size, in_channels = 3, out_channels = 3, cond_length = 10):
         super(Star_Generator, self).__init__()
         self.cond_length = cond_length
+        print(self.cond_length)
+        self.h, self.w = img_size[0], img_size[1]
+        self.condProj = nn.Linear(cond_length, cond_length*self.h*self.w)
 
-        self.C1 = nn.Conv2d(in_channels + cond_length, 64, kernel_size = 4, stride = 2, padding = 1)
+        self.C1 = nn.Conv2d(in_channels + cond_length, 64, kernel_size = 7, stride = 1, padding = 3)
         self.I1 = nn.InstanceNorm2d(64)
 
         self.C2 = nn.Conv2d(64, 128, kernel_size = 4, stride = 2, padding = 1)
         self.I2 = nn.InstanceNorm2d(128)
 
-        self.R1 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
-        self.R2 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
-        self.R3 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
-        self.R4 = ResBlock(128, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.C3 = nn.Conv2d(128, 256, kernel_size = 4, stride = 2, padding = 1)
+        self.I3 = nn.InstanceNorm2d(256)
 
-        self.TC1 = nn.ConvTranspose2d(128, 64, kernel_size = 4, stride = 2, padding = 1)
-        self.IT1 = nn.InstanceNorm2d(64)
+        self.R1 = ResBlock(256 + cond_length, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.R2 = ResBlock(256 + cond_length*2, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.R3 = ResBlock(256 + cond_length*3, specnorm = False, batchnorm = True, use_instance_norm = True)
+        self.R4 = ResBlock(256 + cond_length*4, specnorm = False, batchnorm = True, use_instance_norm = True)
 
-        self.TC2 = nn.ConvTranspose2d(64, 32, kernel_size = 4, stride = 2, padding = 1)
-        self.IT2 = nn.InstanceNorm2d(32)
+        self.ResList = nn.ModuleList([self.R1, self.R2, self.R3, self.R4])
 
-        self.TC3 = nn.ConvTranspose2d(32, out_channels, kernel_size = 3, stride = 1, padding = 1)        
+        self.TC1 = nn.ConvTranspose2d(256 + cond_length*4, 128, kernel_size = 4, stride = 2, padding = 1)
+        self.IT1 = nn.InstanceNorm2d(128)
+
+        self.TC2 = nn.ConvTranspose2d(128, 64, kernel_size = 4, stride = 2, padding = 1)
+        self.IT2 = nn.InstanceNorm2d(64)
+
+        self.TC3 = nn.ConvTranspose2d(64, out_channels, kernel_size = 7, stride = 1, padding = 3)        
 
     def forward(self, x, c):
-        c = c.view(-1, self.cond_length, 1, 1)
-        c = c.repeat(1, 1, x.shape[2], x.shape[3])
+        #c = c.view(-1, self.cond_length, 1, 1)
+        #c = c.repeat(1, 1, x.shape[2], x.shape[3])
+        c = F.leaky_relu(self.condProj(c))
+        c = c.view(-1, self.cond_length, self.h, self.w)
         x = torch.cat([x, c], dim = 1)
 
         x = F.leaky_relu(self.I1(self.C1(x)))
         x = F.leaky_relu(self.I2(self.C2(x)))
-        x = self.R4(self.R3(self.R2(self.R1(x))))
+        x = F.leaky_relu(self.I3(self.C3(x)))
+
+        c = F.interpolate(c, scale_factor = 1/4, align_corners = False, mode = "bilinear")
+
+        for R in self.ResList:
+          x = torch.cat([x, c], dim = 1)
+          x = R(x)
+
         x = F.leaky_relu(self.IT1(self.TC1(x)))
         x = F.leaky_relu(self.IT2(self.TC2(x)))
         x = torch.tanh(self.TC3(x))
@@ -171,7 +188,7 @@ class Star_Patch_Discriminator(nn.Module):
     def __init__(self, img_size, in_channels = 3, cond_length = 10):
         super(Star_Patch_Discriminator, self).__init__()
         self.cond_length = cond_length
-        self.h, self.w = img_size[0]//32, img_size[1]//32
+        self.h, self.w = img_size[0]//64, img_size[1]//64
 
         self.C1 = nn.Conv2d(in_channels, 32, kernel_size = 4, stride = 2, padding = 1)
 
@@ -186,8 +203,11 @@ class Star_Patch_Discriminator(nn.Module):
 
         self.C5 = nn.Conv2d(256, 512, kernel_size = 4, stride = 2, padding = 1)
         self.B5 = nn.BatchNorm2d(512)
-        
-        self.C6 = nn.Conv2d(512, 30, kernel_size = 3, stride = 1, padding = 1)
+
+        self.C6 = nn.Conv2d(512, 512, kernel_size = 4, stride = 2, padding = 1)
+        self.B6 = nn.BatchNorm2d(512)
+
+        self.C7 = nn.Conv2d(512, 30, kernel_size = 4, stride = 2, padding = 1)
 
         self.D1 = nn.Linear(512*self.h*self.w, cond_length)
 
@@ -197,9 +217,10 @@ class Star_Patch_Discriminator(nn.Module):
         x = F.leaky_relu(self.B3(self.C3(x)))
         x = F.leaky_relu(self.B4(self.C4(x)))
         x = F.leaky_relu(self.B5(self.C5(x)))
+        x = F.leaky_relu(self.B6(self.C6(x)))
 
         h = x.view(-1, 512*self.h*self.w)
 
         c = self.D1(h)
-        x = self.C6(x)
+        x = self.C7(x)
         return x, c
