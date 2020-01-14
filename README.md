@@ -58,6 +58,17 @@ You need these before you run the notebooks
 
 * **Conditional SNGAN with Word Embeddings**
 
+	Conditional GAN using continous labels instead, with GLoVe word embeddings in this particular case.
+
 * **StarGAN**
+
+	A more generalized version of the CycleGAN using just a single generator with conditioning.
+
+* **SNGAN-FractalNet Edition with CIFAR**
+
+	Spectral Normalization in the Discriminator, Self Modulation in the Generator, Wasserstein Loss with Gradient Penalty. Fractal blocks used in both networks. Look at [this](https://arxiv.org/abs/1605.07648) paper to know more about Fractal blocks.
+	The horses shown below were obtained after a 100 epochs.
+
+	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/cifar_horses_100.png)
 
 * More to come.....
