@@ -77,12 +77,14 @@ class Star_Generator(nn.Module):
     def __init__(self, img_size, in_channels = 3, out_channels = 3, cond_length = 10):
         super(Star_Generator, self).__init__()
         self.cond_length = cond_length
+        self.ext_cond_length = cond_length*3
         print(self.cond_length)
         self.h, self.w = img_size[0], img_size[1]
         
-        self.E = nn.Embedding(cond_length, cond_length)
+        self.E = nn.Embedding(cond_length, self.ext_cond_length)
+        self.Drop = nn.Dropout()
 
-        self.C1 = nn.Conv2d(in_channels + cond_length, 64, kernel_size = 3, stride = 1, padding = 1)
+        self.C1 = nn.Conv2d(in_channels + self.ext_cond_length, 64, kernel_size = 3, stride = 1, padding = 1)
         self.I1 = nn.InstanceNorm2d(64)
 
         self.C2 = nn.Conv2d(64, 128, kernel_size = 4, stride = 2, padding = 1)
@@ -94,50 +96,47 @@ class Star_Generator(nn.Module):
         self.C4 = nn.Conv2d(256, 512, kernel_size = 4, stride = 2, padding = 1)
         self.I4 = nn.InstanceNorm2d(512)
 
-      
         self.R1 = ResBlock(512, specnorm = False, batchnorm = True, use_instance_norm = True)
         self.R2 = ResBlock(512, specnorm = False, batchnorm = True, use_instance_norm = True)
         self.R3 = ResBlock(512, specnorm = False, batchnorm = True, use_instance_norm = True)
-
         self.ResList = nn.ModuleList([self.R1, self.R2, self.R3])
         
-        self.TC1 = nn.ConvTranspose2d(512 + 512, 256, kernel_size = 4, stride = 2, padding = 1)
+        self.TC1 = nn.ConvTranspose2d(512, 256, kernel_size = 4, stride = 2, padding = 1)
         self.IT1 = nn.InstanceNorm2d(256)
 
-        self.TC2 = nn.ConvTranspose2d(256 + 256, 128, kernel_size = 4, stride = 2, padding = 1)
+        self.TC2 = nn.ConvTranspose2d(256, 128, kernel_size = 4, stride = 2, padding = 1)
         self.IT2 = nn.InstanceNorm2d(128)
 
-        self.TC3 = nn.ConvTranspose2d(128 + 128, 64, kernel_size = 4, stride = 2, padding = 1)
+        self.TC3 = nn.ConvTranspose2d(128, 64, kernel_size = 4, stride = 2, padding = 1)
         self.IT3 = nn.InstanceNorm2d(64)
 
-        self.TC4 = nn.ConvTranspose2d(64 + 64 + cond_length, out_channels, kernel_size = 7, stride = 1, padding = 3)        
+        self.TC4 = nn.ConvTranspose2d(64 + self.ext_cond_length, out_channels, kernel_size = 7, stride = 1, padding = 3)        
 
     def forward(self, x, c_i):
         c_y = self.E(c_i)
-        c_y = c_y.view(-1, self.cond_length, 1, 1)
+        c_y = c_y.view(-1, self.ext_cond_length, 1, 1)
         c_y = c_y.repeat(1, 1, x.shape[2], x.shape[3])
         x = torch.cat([x, c_y], dim = 1)
 
         a = F.leaky_relu(self.I1(self.C1(x)))
         b = F.leaky_relu(self.I2(self.C2(a)))
+        b = self.Drop(b)
         c = F.leaky_relu(self.I3(self.C3(b)))
         d = F.leaky_relu(self.I4(self.C4(c)))
         
         x = d
 
         for R in self.ResList:
+          x = self.Drop(x)
           x = R(x)
 
-        x = torch.cat([x, d], dim = 1)
         x = F.leaky_relu(self.IT1(self.TC1(x)))
 
-        x = torch.cat([x, c], dim = 1)
         x = F.leaky_relu(self.IT2(self.TC2(x)))
-
-        x = torch.cat([x, b], dim = 1)
+        x = self.Drop(x)
         x = F.leaky_relu(self.IT3(self.TC3(x)))
         
-        x = torch.cat([x, a, c_y], dim = 1)
+        x = torch.cat([x, c_y], dim = 1)
         x = torch.tanh(self.TC4(x))
         return x
 

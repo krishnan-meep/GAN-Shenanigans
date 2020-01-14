@@ -86,6 +86,57 @@ class DenseBlock(nn.Module):
 
     return torch.cat([a,b,c,d,e], dim = 1)
 
+#Only works with Convolutions for now############################################################
+#level determines how much you want to split the main convolution path, 0 is just a fractal block
+#################################################################################################
+class FractalBlock(nn.Module):
+  def __init__(self, channels, level = 0, specnorm = False, batchnorm = False):
+    super(FractalBlock, self).__init__()
+    self.level = level
+
+    if level <= 0:
+      self.C1 = nn.Conv2d(channels, channels, kernel_size = 3, padding = 1)
+      self.C2 = nn.Conv2d(channels, channels, kernel_size = 3, padding = 1)
+    else:
+      self.C1 = FractalBlock(channels, level = level - 1, specnorm = specnorm, batchnorm = batchnorm)
+      self.C2 = FractalBlock(channels, level = level - 1, specnorm = specnorm, batchnorm = batchnorm)
+    self.C_Side = nn.Conv2d(channels, channels, kernel_size = 3, padding = 1)
+
+    self.B1 = nn.BatchNorm2d(channels)
+    self.B2 = nn.BatchNorm2d(channels)
+    self.B3 = nn.BatchNorm2d(channels)
+
+    self.batchnorm = batchnorm
+    if specnorm:
+      if level <= 0:
+        self.C1 = SpectralNorm(self.C1)
+        self.C2 = SpectralNorm(self.C2)
+      self.C_Side = SpectralNorm(self.C_Side)
+
+  def forward(self, x):
+    if self.batchnorm:
+      if self.level > 0: 
+        p1 = self.C1(x)
+        p1 = self.C2(p1)
+      else:
+        p1 = F.leaky_relu(self.B1(self.C1(x)))
+        p1 = F.leaky_relu(self.B2(self.C2(p1)))
+      p2 = F.leaky_relu(self.B3(self.C_Side(x)))
+    else:
+      if self.level > 0: 
+        p1 = self.C1(x)
+        p1 = self.C2(p1)
+      else:
+        p1 = F.leaky_relu(self.C1(x))
+        p1 = F.leaky_relu(self.C2(p1))
+
+      p2 = F.leaky_relu(self.C_Side(x))
+
+    #I assumed this was the element wise mean they meant in the paper, not sure
+    x = (p1 + p2)/2
+    return x
+
+####################################################################################
 
 class UpBlock(nn.Module):
   def __init__(self, in_channels, out_channels, specnorm = False, batchnorm = False):
