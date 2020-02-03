@@ -194,7 +194,7 @@ class Patch_Discriminator(nn.Module):
         x = F.leaky_relu(self.B3(self.C3(x)))
         x = F.leaky_relu(self.B4(self.C4(x)))
         x = F.leaky_relu(self.B5(self.C5(x)))
-        x = F.leaky_relu(self.C6(x))
+        x = self.C6(x)
         return x
 
 class Star_Patch_Discriminator(nn.Module):
@@ -205,24 +205,24 @@ class Star_Patch_Discriminator(nn.Module):
         
         self.Drop = nn.Dropout()
         self.C1 = nn.Conv2d(in_channels, 32, kernel_size = 4, stride = 2, padding = 1)
-        self.B1 = nn.BatchNorm2d(32)
+        self.B1 = nn.InstanceNorm2d(32)
 
         self.C2 = nn.Conv2d(32, 64, kernel_size = 4, stride = 2, padding = 1)
-        self.B2 = nn.BatchNorm2d(64)
+        self.B2 = nn.InstanceNorm2d(64)
         
         self.C3 = nn.Conv2d(64, 128, kernel_size = 4, stride = 2, padding = 1)
-        self.B3 = nn.BatchNorm2d(128)
+        self.B3 = nn.InstanceNorm2d(128)
         
         self.C4 = nn.Conv2d(128, 256, kernel_size = 4, stride = 2, padding = 1)
-        self.B4 = nn.BatchNorm2d(256)
+        self.B4 = nn.InstanceNorm2d(256)
 
         self.C5 = nn.Conv2d(256, 512, kernel_size = 4, stride = 2, padding = 1)
-        self.B5 = nn.BatchNorm2d(512)
+        self.B5 = nn.InstanceNorm2d(512)
 
         self.C6 = nn.Conv2d(512, 512, kernel_size = 4, stride = 2, padding = 1)
-        self.B6 = nn.BatchNorm2d(512)
+        self.B6 = nn.InstanceNorm2d(512)
 
-        self.C7 = nn.Conv2d(512, 30, kernel_size = 4, stride = 2, padding = 1)
+        self.C7 = nn.Conv2d(512, 30, kernel_size = 1, stride = 1, padding = 0)
 
         self.D1 = nn.Linear(512*self.h*self.w, cond_length)
 
