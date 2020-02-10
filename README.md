@@ -71,4 +71,10 @@ You need these before you run the notebooks
 
 	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/cifar_horses_100.png)
 
+* **GauGAN with Binary Thresholded Images**
+
+	Patch Discriminator, SPADE Generator with Binary Thresholded images for modulation instead of segmentation maps, Hinge Loss, SpecNorm in both networks. Trained it on a set of landscape images.
+
+	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/gaugan_bin.png)
+
 * More to come.....
