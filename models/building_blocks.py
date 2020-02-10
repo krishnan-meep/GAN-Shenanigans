@@ -147,7 +147,10 @@ class UpBlock(nn.Module):
     self.C1 = (nn.Conv2d(in_channels, out_channels, kernel_size = 3, stride = 1, padding = 1))
     if specnorm:
         self.C1 = SpectralNorm(self.C1, power_iterations= 1)
-    self.B1 =  nn.BatchNorm2d(out_channels)
+        self.B1 =  nn.InstanceNorm2d(out_channels)
+    else:
+        self.B1 =  nn.BatchNorm2d(out_channels)
+
 
   def forward(self, x):
     x = self.U(x)
