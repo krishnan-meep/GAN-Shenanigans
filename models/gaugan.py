@@ -75,6 +75,7 @@ class SPADE_Generator(nn.Module):
 
 		if specnorm:
 			self.Proj = SpectralNorm(self.Proj)
+			self.TC4 = SpectralNorm(self.TC4)
 
 	def forward(self, z, s):
 		x = self.Proj(z)
