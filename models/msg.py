@@ -6,7 +6,7 @@ import numpy as np
 import math
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
-from models.building_blocks import SpectralNorm
+from models.building_blocks import SpectralNorm, Self_Attn
 
 class ConvBlock(nn.Module):
 	def __init__(self, in_channels, out_channels, specnorm = True):
@@ -30,6 +30,8 @@ class Generator(nn.Module):
 		self.Proj = nn.Linear(128, 128*self.h*self.w)
 		self.RGB_init = nn.Conv2d(128, 3, kernel_size = 1)
 
+		self.Attn = Self_Attn(32, specnorm = specnorm)
+
 		self.layers, self.rgbs = [], []
 
 		f = 128
@@ -52,6 +54,10 @@ class Generator(nn.Module):
 		for i in range(3):
 			x = F.interpolate(x, scale_factor = 2)
 			x = self.layers[i](x)
+
+			if i == 1:
+ 						x, _ = self.Attn(x)
+
 			t = torch.tanh(self.rgbs[i](x))
 			o.append(t)
 

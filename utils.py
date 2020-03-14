@@ -13,6 +13,9 @@ def load_data(path, image_size, block_size = None, as_grayscale = False):
 
   for i,file in enumerate(files):
     img = cv2.imread(path+"/"+file)
+    if img is None:
+        continue
+
     img = cv2.resize(img, (image_size[1], image_size[0]))
 
     if as_grayscale:
