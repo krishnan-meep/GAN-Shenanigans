@@ -77,4 +77,11 @@ You need these before you run the notebooks
 
 	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/gaugan_bin.png)
 
+* **RealnessGAN**
+
+	Considers a distribution instead of a single scalar output from the discriminator. Real and fake anchor (discrete) distributions with KL Divergence Loss. Very basic Generator and Discriminator
+	with SpectralNorm.
+
+	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/cifar_realness.png)
+
 * More to come.....
