@@ -84,4 +84,10 @@ You need these before you run the notebooks
 
 	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/cifar_realness.png)
 
+* **Evolutionary GAN**
+
+	Mutates a generator parent using different loss function and picks the best performing child for the next iteration.
+
+	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/evo_cifar.png)
+
 * More to come.....
