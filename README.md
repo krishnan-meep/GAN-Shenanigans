@@ -90,4 +90,11 @@ You need these before you run the notebooks
 
 	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/evo_cifar.png)
 
+* **A Really Mixed Bag**
+
+	Uses a Vision Transformer for the discriminator, dividing 32x32 CIFAR images into 8x8 patches. Uses a StyleGAN like generator. Uses Relativistic Averaging Least Squares Loss. What a mouthful.
+
+	![](https://github.com/krishnan-meep/GAN-Shenanigans/blob/master/images_results/transformer_disc_results.png)
+
+
 * More to come.....
